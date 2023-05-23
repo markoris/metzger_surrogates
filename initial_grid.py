@@ -48,6 +48,9 @@ for m in ms:
             # convert Flam to Lbol
             # first interpolate the spectrum across wavelengths
             lc_bol_lum = []
+            # convert wavelengths to Angstroms to match F_lambda units of erg / s / cm^2 / Angstrom
+            # this doesn't matter during plotting but DOES MATTER FOR INTEGRATION
+            wavelengths *= 1e4 # microns to Angstroms
             for t in range(len(tdays)):
                 # t + 1 to account for the fact that index 0 = wavelengths, not fluxes
                 flux_smooth = interp1d(wavelengths, flux[t+1, :], kind='cubic')
@@ -57,6 +60,7 @@ for m in ms:
                 # r = 10 pc = 3.0857e19 cm
                 Lbol = F * 4 * np.pi * r**2
                 lc_bol_lum.append(Lbol)
+            print(lc_bol_lum)
             # convert to array for ease of operations in magnitude conversion
             lc_bol_lum = np.array(lc_bol_lum)
             np.savetxt('{0}/beta{1}/lc_lums/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *params[0]), np.c_[tdays, lc_bol_lum], header='Time (days) \t L_bol (erg / s)', fmt="%.3f \t %.6e")
