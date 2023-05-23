@@ -60,7 +60,6 @@ def calc_lc(mej, vej, beta, kappa_r, D, kappa_cut=False):
     # ** define time array in seconds **
     #tdays = np.arange(tini,tmax+dt,dt)
     # matching LANL spectra times, log-spaced times from 1/8th of a day to 64 days
-    # 82, 91, 100, etc. also work... how many spectra do we want?
     # this is the right place to implement this, since we only want the
     # spectra of interest to be generated, thus we can recover the entire F_lam(t) array
     tdays = np.logspace(np.log10(0.125), np.log10(64), 73)
