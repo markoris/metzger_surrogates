@@ -62,7 +62,11 @@ def calc_lc(mej, vej, beta, kappa_r, kappa_cut=False):
     # matching LANL spectra times, log-spaced times from 1/8th of a day to 64 days
     # this is the right place to implement this, since we only want the
     # spectra of interest to be generated, thus we can recover the entire F_lam(t) array
-    tdays = np.logspace(np.log10(0.125), np.log10(64), 73)
+    # go past t = 64 days to 128 to ensure times are spaced properly
+    # last time in Metzger calculation always yields nan, need 64 days + 1 bonus timestep to throw out
+    #tdays = np.logspace(np.log10(0.125), np.log10(64), 73)
+    tdays = np.logspace(np.log10(0.125), np.log10(128), 81)[:74] # captures t = 64 days without excess that goes out to 128 days
+    tdays = np.insert(tdays, 0, 0.1) # insert dummy first time since it always returns 0 flux due to being an edge case
     t = tdays*(3600.*24.)
     tprec = len(t)
 
