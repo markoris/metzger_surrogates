@@ -6,7 +6,7 @@
 import os, sys
 import numpy as np
 
-def calc_lc(mej, vej, beta, kappa_r, D, kappa_cut=False):
+def calc_lc(mej, vej, beta, kappa_r, kappa_cut=False):
 
     # ** define constants **
     c = 3.0e10
