@@ -10,9 +10,8 @@ parser.add_argument('beta', help='velocity distribution power-law parameter')
 args = parser.parse_args()
 
 ms = np.logspace(-3, -1, 11)
-vs = np.linspace(0.05, 0.30, 6)
-ks = np.linspace(0, 30, 7)
-ks[0] += 1 # change smallest opacity from 0 to 1
+vs = np.linspace(0.03, 0.30, 7)
+ks = np.linspace(1, 30, 7)
 beta = int(args.beta)
 k_cut = False
 r = 3.086e18 # parsec to cm
@@ -27,10 +26,6 @@ total = len(ms)*len(vs)*len(ks)
 
 # make the hdf5 files to store LCs/spectra
 # see https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py
-# in each hdf5 file, two datasets: "param" and "lightcurves" or "spectra"
-# this avoids any data loading assumptions wrt parameter organization
-# append each new simulation to hdf5 file, will help with i/o tremendously once library size reaches O(100s)
-# consider OO approach... is it necessary?
 
 for m in ms:
     for v in vs:
@@ -45,7 +40,7 @@ for m in ms:
             flux = flux.T    # swap shape to [n_times x n_wavs] = [72, 1024]
             wavelengths = np.logspace(np.log10(1e-5), np.log10(1.28e-3), 1024)*1e4 # cm to microns
             flux = np.insert(flux, 0, wavelengths, axis=0) # append wavelengths to be stored in spectra
-            np.savetxt('{0}/beta{1}/spectra/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), flux, header='Wavelengths (microns) \t Flux (erg / s / cm^2 / Angstrom) in shape [[wavs + n_times] x n_wavs] = [73 x 1024]', fmt="%g")
+            #np.savetxt('{0}/beta{1}/spectra/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), flux, header='Wavelengths (microns) \t Flux (erg / s / cm^2 / Angstrom) in shape [[wavs + n_times] x n_wavs] = [73 x 1024]', fmt="%g")
             try:
                 params = np.concatenate((params, param), axis=0)
                 spec = np.concatenate((spec, flux[None, :]), axis=0)
@@ -71,7 +66,7 @@ for m in ms:
                 lc_bol_lum.append(Lbol)
             # convert to array for ease of operations in magnitude conversion
             lc_bol_lum = np.array(lc_bol_lum)
-            np.savetxt('{0}/beta{1}/lc_lums/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_lum], header='Time (days) \t L_bol (erg / s)', fmt="%.3f \t %.6e")
+            #np.savetxt('{0}/beta{1}/lc_lums/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_lum], header='Time (days) \t L_bol (erg / s)', fmt="%.3f \t %.6e")
             try:
                 lums = np.concatenate((lums, lc_bol_lum[None, :]), axis=0)
             except NameError:
@@ -82,7 +77,7 @@ for m in ms:
             # L = flux*4*pi*r**2 -> flux = L/(4*pi*r**2) -> log10(flux) = log10(L/4*pi*r**2) = log10(L) - log10(4*pi*r**2)
             lc_bol_mag = np.log10(lc_bol_lum) - np.log10(4*np.pi*r**2)
             lc_bol_mag = -48.6 - 2.5*lc_bol_mag
-            np.savetxt('{0}/beta{1}/lc_mags/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_mag], header='Time (days) \t m_{AB, bol}', fmt="%.3f \t %.3f")
+            #np.savetxt('{0}/beta{1}/lc_mags/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_mag], header='Time (days) \t m_{AB, bol}', fmt="%.3f \t %.3f")
             try:
                 mags = np.concatenate((mags, lc_bol_mag[None, :]), axis=0)
             except NameError:
