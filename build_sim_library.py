@@ -55,5 +55,7 @@ N_sim = params.shape[0]+1
 new_sim_params = param_sim_to_place
 max_sigma = test_std[idx_max_std]
 f=open('error_evolution.dat', 'a')
-f.writelines('{0} \t {1} \t {2} \t {3} \t {4}'.format(N_sim, *new_sim_params, max_sigma))
+file_length = len(open('error_evolution.dat', 'r').read().split('\n'))
+if file_length == 1: f.writelines('N_sims \t m \t v \t kappa \t max_sigma\n')
+f.writelines('{0:d} \t\t {1:.3f} \t {2:.3f} \t {3:.1f} \t {4:.3f}\n'.format(N_sim, *new_sim_params, max_sigma))
 f.close()
