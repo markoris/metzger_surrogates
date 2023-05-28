@@ -1,4 +1,6 @@
+import sys
 import h5py
+import argparse
 import interpolators
 import numpy as np
 import metzger2017 as m17
@@ -51,11 +53,17 @@ def run_m17(params, beta):
 
     return spec, lums, mags
 
+parser = argparse.ArgumentParser()
+parser.add_argument('beta', type=int, help='velocity distribution power-law parameter')
+args = parser.parse_args()
+
+beta = int(args.beta)
+
 # Initialize GP
 
 GP = interpolators.GP()
 
-path_to_hdf5 = 'M17_no_engine_full_opacity/beta1/hdf5_data' 
+path_to_hdf5 = 'M17_no_engine_full_opacity/beta%d/hdf5_data' % beta
 #path_to_hdf5 = 'test_h5' 
 
 # Load hdf5 data for bolometric magnitude light curves
@@ -75,7 +83,7 @@ GP.train(params, lc_bol_mag, nro=0)
 
 # Generate 1 million samples to evaluate for highest uncertainty
 
-param_mins = [-3, 0.01, 1]
+param_mins = [-3, 0.03, 1]
 param_maxs = [-1, 0.30, 30]
 
 test_params = np.random.uniform(low=param_mins, high=param_maxs, size=(int(1e5), 3))
@@ -103,18 +111,17 @@ param_sim_to_place = test_params[idx_max_std]
 print('place simulation at these parameters: ', param_sim_to_place)
 
 # Run Metzger model
-#path_to_lc_bol_mag = 'M17_no_engine_full_opacity/beta1/hdf5_data/lc_mags.h5' 
-#beta = path_to_hdf5.split('/')[1][-1]
-beta = 1
 
 spec, lums, mags = run_m17(param_sim_to_place, beta)
+
+if np.isnan(spec).any(): sys.exit()
 
 # Save evolution of parameters and error as simulations are added
 
 N_sim = params.shape[0]+1
 max_sigma = test_std[idx_max_std]
-f=open('error_evolution.dat', 'a')
-file_length = len(open('error_evolution.dat', 'r').read().split('\n'))
+f=open('error_evolution_beta%d.dat' % beta, 'a')
+file_length = len(open('error_evolution_beta%d.dat' % beta, 'r').read().split('\n'))
 if file_length == 1: f.writelines('N_sims \t m \t\t v \t\t kappa \t max_sigma\n')
 f.writelines('{0:d} \t {1:.3f} \t {2:.3f} \t {3:.2f} \t {4:.3f}\n'.format(N_sim, *param_sim_to_place, max_sigma))
 f.close()
