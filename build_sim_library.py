@@ -63,7 +63,8 @@ beta = int(args.beta)
 
 GP = interpolators.GP()
 
-path_to_hdf5 = 'M17_no_engine_full_opacity/beta%d/hdf5_data' % beta
+path_to_hdf5 = 'm17_beta%d_kappabroad' % beta
+#path_to_hdf5 = 'M17_no_engine_full_opacity/beta%d/hdf5_data' % beta
 #path_to_hdf5 = 'test_h5' 
 
 # Load hdf5 data for bolometric magnitude light curves
@@ -83,11 +84,12 @@ GP.train(params, lc_bol_mag, nro=0)
 
 # Generate 1 million samples to evaluate for highest uncertainty
 
-param_mins = [-3, 0.03, 1]
-param_maxs = [-1, 0.30, 30]
+param_mins = [np.log10(0.01), 0.03, np.log10(0.05)]
+param_maxs = [np.log10(0.1), 0.30, np.log10(100)]
 
 test_params = np.random.uniform(low=param_mins, high=param_maxs, size=(int(1e5), 3))
 test_params[:, 0] = 10**test_params[:, 0]
+test_params[:, 2] = 10**test_params[:, 2]
 
 # Evaluate test samples
 

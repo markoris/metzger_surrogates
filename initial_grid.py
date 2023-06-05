@@ -9,17 +9,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument('beta', help='velocity distribution power-law parameter')
 args = parser.parse_args()
 
-ms = np.logspace(-3, -1, 11)
+ms = np.logspace(np.log10(0.01), np.log10(0.1), 11)
 vs = np.linspace(0.03, 0.30, 7)
-ks = np.linspace(1, 30, 7)
+ks = np.logspace(np.log10(0.05), np.log10(100), 7)
 beta = int(args.beta)
 k_cut = False
 r = 3.086e18 # parsec to cm
 r *= 10 # 10 pc for absolute magnitude
 
-outdir = 'M17_no_engine_full_opacity'
-hdf5_data_path = outdir + '/beta' + str(beta)
-hdf5_data_path += '/hdf5_data'
+#outdir = 'M17_no_engine_full_opacity'
+hdf5_data_path = 'm17_beta%d_kappabroad' % beta
+#hdf5_data_path = outdir + '/beta' + str(beta)
+#hdf5_data_path += '/hdf5_data'
 
 counter = 0
 total = len(ms)*len(vs)*len(ks)
@@ -37,6 +38,9 @@ for m in ms:
             # cut the last time as it results in nans
             tdays = tdays[1:-1]
             flux = flux[:, 1:-1]*1e-8 # scale output to per Angstrom, shape = [n_wavs x n_times] = [1024, 72]
+            if np.isnan(flux).any():
+                print('parameters m={0} v={1} k={2} produce NaN'.format(m, v, k))
+                continue
             flux = flux.T    # swap shape to [n_times x n_wavs] = [72, 1024]
             wavelengths = np.logspace(np.log10(1e-5), np.log10(1.28e-3), 1024)*1e4 # cm to microns
             flux = np.insert(flux, 0, wavelengths, axis=0) # append wavelengths to be stored in spectra
