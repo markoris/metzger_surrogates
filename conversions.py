@@ -81,7 +81,7 @@ def mags_to_lums(mags):
 	lums = flux * (4 * np.pi * d**2)
 	return lums
 
-def spec_to_mags(wavs, spec, band):
+def spec_to_mags(wavs, spec, band, z=0):
 	'''
 	converts spectra to magnitudes, update this to be more informative later
 	relies heavily on Eve Chase's code implementation, a big thank you to her for the insights and help provided
@@ -92,20 +92,20 @@ def spec_to_mags(wavs, spec, band):
 
 	wavs, spec = np.copy(wavs), np.copy(spec)
 
-	z = 0.0098 # distance to NGC 4993, host galaxy of AT2017gfo
+	#z = 0.0098 # distance to NGC 4993, host galaxy of AT2017gfo
 
 	filter_data = filter_parse(band) # starts as transmission as a function of wavelength in ANGSTROMS
-	filter_data[:, 0] *= 1e-8 # filter wavelengths from Angstrom to cm
+	#filter_data[:, 0] *= 1e-8 # filter wavelengths from Angstrom to cm
 
-	spec *= 1e8 # spectral flux density starts as erg/s/Angstrom/cm^2 -> 10^8 Anstroms per cm -> spectral flux density now in units of erg/s/cm/cm^2
+	#spec *= 1e8 # spectral flux density starts as erg/s/Angstrom/cm^2 -> 10^8 Anstroms per cm -> spectral flux density now in units of erg/s/cm/cm^2
 		    # wavs still in units of cm
 	
 	wav_lower = filter_data[0, 0]
 	wav_upper = filter_data[-1, 0]
 
-	filt = interp1d(filter_data[:, 0], filter_data[:, 1], fill_value=1e-30) # wavelengths in cm
+	filt = interp1d(filter_data[:, 0], filter_data[:, 1], fill_value=1e-30) # wavelengths in Angstroms
 	
-	spectrum = interp1d(wavs, spec, fill_value=1e-30) # wavelengths in cm, flux in erg/s/cm^2/cm
+	spectrum = interp1d(wavs, spec, fill_value=1e-30) # wavelengths in Angstromgs, flux in erg/s/cm^2/Angstrom
 
 	numerator = lambda wav : wav/(1+z) * spectrum(wav/(1+z)) * filt(wav)
 	denominator = lambda wav : filt(wav)/wav
