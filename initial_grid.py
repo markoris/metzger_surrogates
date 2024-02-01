@@ -4,6 +4,7 @@ import numpy as np
 import metzger2017 as m17
 from scipy.interpolate import interp1d
 from scipy.integrate import fixed_quad
+from conversions import filter_parse, spec_to_mags 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('beta', help='velocity distribution power-law parameter')
@@ -22,6 +23,8 @@ hdf5_data_path = 'm17_beta%d_kappabroad' % beta
 #hdf5_data_path = outdir + '/beta' + str(beta)
 #hdf5_data_path += '/hdf5_data'
 
+filters = 'grizyJHK'
+
 counter = 0
 total = len(ms)*len(vs)*len(ks)
 
@@ -33,6 +36,17 @@ for m in ms:
         for k in ks:
             counter += 1
             if counter % 10 == 0: print(counter, '/', total)
+
+            lc_mag_broadband = {'g': [],
+                       'r': [],
+                       'i': [],
+                       'z': [],
+                       'y': [],
+                       'J': [],
+                       'H': [],
+                       'K': []}
+            lc_mag_filter = {}
+
             param = np.c_[m, v, k]
             tdays, Ltot, flux, T, R = m17.calc_lc(m, v, beta, k, kappa_cut=k_cut)
             # cut the last time as it results in nans
@@ -61,7 +75,7 @@ for m in ms:
             wavelengths *= 1e4 # microns to Angstroms
             for t in range(len(tdays)):
                 # t + 1 to account for the fact that index 0 = wavelengths, not fluxes
-                flux_smooth = interp1d(wavelengths, flux[t+1, :], kind='cubic')
+                flux_smooth = interp1d(wavelengths, flux[t+1, :], kind='cubic') # interpolated spectrum
                 # integrate over wavelengths to get erg / s / cm^2
                 F = fixed_quad(flux_smooth, wavelengths[0], wavelengths[-1])[0]
                 # multiply by 4*pi*r^2 to get erg / s
@@ -75,7 +89,19 @@ for m in ms:
                 lums = np.concatenate((lums, lc_bol_lum[None, :]), axis=0)
             except NameError:
                 lums = lc_bol_lum[None, :]
-            
+
+            # convert Flam to broadband magnitudes
+            for t in range(len(tdays)):
+                for f in filters:
+                    filter_mag = spec_to_mags(wavelengths, flux[t+1, :], band=f)[0]
+                    lc_mag_broadband[f].append(filter_mag)
+
+            for f in filters:
+                try:
+                    lc_mag_filter[f] = np.concatenate((lc_mag_filter[f], np.array(lc_mag_broadband[f])[None, :]), axis=0)
+                except KeyError:
+                    lc_mag_filter[f] = np.array(lc_mag_broadband[f])[None, :]
+
 
             # convert Lbol to mags
             # L = flux*4*pi*r**2 -> flux = L/(4*pi*r**2) -> log10(flux) = log10(L/4*pi*r**2) = log10(L) - log10(4*pi*r**2)
@@ -113,6 +139,20 @@ header.attrs['bolometric'] = True
 h5f.create_dataset('params', data=params, compression="gzip", chunks=True, maxshape=(None, 3)) 
 h5f.create_dataset('lc_lums', data=lums, compression="gzip", chunks=True, maxshape=(None, 73))
 h5f.close()
+
+# save broadband mag LCs to hdf5
+print('writing broadband LCs to hdf5...')
+for f in filters:
+	h5f = h5py.File(hdf5_data_path+'/lc_mag_%s.h5' % f, 'a')
+	header = h5f.create_dataset('header', (1))
+	header.attrs['units_lc_lums'] = 'absolute AB magnitude (AB magnitude at 10 pc)'
+	header.attrs['lc_lums_array_structure'] = '[N, 73]: N = number of simulations, 73 = observation times'
+	header.attrs['observation_times'] = np.array2string(np.logspace(np.log10(0.125), np.log10(128), 81)[:73], precision=4, max_line_width=50)
+	header.attrs['units_observation_times'] = 'days'
+	header.attrs['bolometric'] = False
+	h5f.create_dataset('params', data=params, compression="gzip", chunks=True, maxshape=(None, 3)) 
+	h5f.create_dataset('lc_lums', data=lc_mag_filter[f], compression="gzip", chunks=True, maxshape=(None, 73))
+	h5f.close()
 
 # save AB magnitude LCs to hdf5
 print('writing lc_mags to hdf5...')
