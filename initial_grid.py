@@ -31,6 +31,15 @@ total = len(ms)*len(vs)*len(ks)
 # make the hdf5 files to store LCs/spectra
 # see https://stackoverflow.com/questions/47072859/how-to-append-data-to-one-specific-dataset-in-a-hdf5-file-with-h5py
 
+lc_mag_filter = {'g': np.array([]),
+       'r': np.array([]),
+       'i': np.array([]),
+       'z': np.array([]),
+       'y': np.array([]),
+       'J': np.array([]),
+       'H': np.array([]),
+       'K': np.array([])}
+
 for m in ms:
     for v in vs:
         for k in ks:
@@ -45,7 +54,6 @@ for m in ms:
                        'J': [],
                        'H': [],
                        'K': []}
-            lc_mag_filter = {}
 
             param = np.c_[m, v, k]
             tdays, Ltot, flux, T, R = m17.calc_lc(m, v, beta, k, kappa_cut=k_cut)
@@ -97,11 +105,10 @@ for m in ms:
                     lc_mag_broadband[f].append(filter_mag)
 
             for f in filters:
-                try:
-                    lc_mag_filter[f] = np.concatenate((lc_mag_filter[f], np.array(lc_mag_broadband[f])[None, :]), axis=0)
-                except KeyError:
+                if lc_mag_filter[f].ndim < 2:
                     lc_mag_filter[f] = np.array(lc_mag_broadband[f])[None, :]
-
+                else:
+                    lc_mag_filter[f] = np.concatenate((lc_mag_filter[f], np.array(lc_mag_broadband[f])[None, :]), axis=0)
 
             # convert Lbol to mags
             # L = flux*4*pi*r**2 -> flux = L/(4*pi*r**2) -> log10(flux) = log10(L/4*pi*r**2) = log10(L) - log10(4*pi*r**2)
@@ -151,7 +158,7 @@ for f in filters:
 	header.attrs['units_observation_times'] = 'days'
 	header.attrs['bolometric'] = False
 	h5f.create_dataset('params', data=params, compression="gzip", chunks=True, maxshape=(None, 3)) 
-	h5f.create_dataset('lc_lums', data=lc_mag_filter[f], compression="gzip", chunks=True, maxshape=(None, 73))
+	h5f.create_dataset('lc_mags', data=lc_mag_filter[f], compression="gzip", chunks=True, maxshape=(None, 73))
 	h5f.close()
 
 # save AB magnitude LCs to hdf5
