@@ -6,8 +6,19 @@ import numpy as np
 import metzger2017 as m17
 from scipy.interpolate import interp1d
 from scipy.integrate import fixed_quad
+from conversions import filter_parse, spec_to_mags 
 
 def run_m17(params, beta):
+
+    lc_mag_broadband = {'g': [],
+	       'r': [],
+	       'i': [],
+	       'z': [],
+	       'y': [],
+	       'J': [],
+	       'H': [],
+	       'K': []}
+
     k_cut=False
     r = 3.086e18 # parsec to cm
     r *= 10 # 10 pc for absolute magnitude
@@ -42,8 +53,17 @@ def run_m17(params, beta):
     lc_bol_lum = np.array(lc_bol_lum)
     #np.savetxt('{0}/beta{1}/lc_lums/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_lum], header='Time (days) \t L_bol (erg / s)', fmt="%.3f \t %.6e")
     lums = lc_bol_lum[None, :]
-    
-    
+
+
+    # convert Flam to broadband magnitudes
+    for t in range(len(tdays)):
+        for f in filters:
+            filter_mag = spec_to_mags(wavelengths, flux[t+1, :], band=f)[0]
+            lc_mag_broadband[f].append(filter_mag)
+
+    for f in filters:
+        lc_mag_broadband[f] = np.array(lc_mag_broadband[f])[None, :]
+
     # convert Lbol to mags
     # L = flux*4*pi*r**2 -> flux = L/(4*pi*r**2) -> log10(flux) = log10(L/4*pi*r**2) = log10(L) - log10(4*pi*r**2)
     lc_bol_mag = np.log10(lc_bol_lum) - np.log10(4*np.pi*r**2)
@@ -51,13 +71,15 @@ def run_m17(params, beta):
     #np.savetxt('{0}/beta{1}/lc_mags/m{2:.4f}_v{3:.2f}_kappa{4:g}.dat'.format(outdir, beta, *param[0]), np.c_[tdays, lc_bol_mag], header='Time (days) \t m_{AB, bol}', fmt="%.3f \t %.3f")
     mags = lc_bol_mag[None, :]
 
-    return spec, lums, mags
+    return spec, lums, mags, lc_mag_broadband
 
 parser = argparse.ArgumentParser()
 parser.add_argument('beta', type=int, help='velocity distribution power-law parameter')
 args = parser.parse_args()
 
 beta = int(args.beta)
+
+filters = 'grizyJHK'
 
 # Initialize GP
 
@@ -97,10 +119,10 @@ print('evaluating test samples...')
 
 test_out, test_std = GP.evaluate(test_params)
 
-# Average uncertainty across all times 
-# to produce 1 million mean sigma values
-
-test_std = np.mean(test_std, axis=1)
+## Average uncertainty across all times 
+## to produce 1 million mean sigma values
+#
+#test_std = np.mean(test_std, axis=1)
 
 # Find highest-uncertainty candidate
 
@@ -114,7 +136,7 @@ print('place simulation at these parameters: ', param_sim_to_place)
 
 # Run Metzger model
 
-spec, lums, mags = run_m17(param_sim_to_place, beta)
+spec, lums, mags, mags_broadband = run_m17(param_sim_to_place, beta)
 
 if np.isnan(spec).any(): sys.exit()
 
@@ -131,9 +153,9 @@ f.close()
 # Update hdf5 file with new simulations
 # Reopen in append mode, not read mode!
 
-h5_mags = h5py.File(path_to_hdf5+'/lc_mags.h5', 'a')
-h5_lums = h5py.File(path_to_hdf5+'/lc_lums.h5', 'a')
-h5_spec = h5py.File(path_to_hdf5+'/spectra.h5', 'a')
+#h5_mags = h5py.File(path_to_hdf5+'/lc_mags.h5', 'a')
+#h5_lums = h5py.File(path_to_hdf5+'/lc_lums.h5', 'a')
+#h5_spec = h5py.File(path_to_hdf5+'/spectra.h5', 'a')
 
 print(param_sim_to_place.shape[0])
 
@@ -168,3 +190,14 @@ with h5py.File(path_to_hdf5+'/spectra.h5', 'a') as h5_spec:
     h5_spec['spectra'][-spec.shape[0]:] = spec
     print(h5_spec['spectra'].shape)
     h5_spec.close()
+
+for f in filters:
+    with h5py.File(path_to_hdf5+'/lc_mag_%s.h5' % f, 'a') as h5_broadband:
+        h5_broadband['params'].resize((h5_broadband['params'].shape[0] + param_sim_to_place.shape[0]), axis=0)
+        h5_broadband['params'][-param_sim_to_place.shape[0]:] = param_sim_to_place
+        print(h5_broadband['params'].shape)
+
+        h5_broadband['lc_mags'].resize((h5_broadband['lc_mags'].shape[0] + mags_broadband[f].shape[0]), axis=0)
+        h5_broadband['lc_mags'][-mags_broadband[f].shape[0]:] = mags_broadband[f]
+        print(h5_broadband['lc_mags'].shape)
+        h5_broadband.close()
